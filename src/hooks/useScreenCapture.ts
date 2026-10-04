@@ -68,6 +68,30 @@ export function useScreenCapture({
     setStream(null);
   }, []);
 
+  /** Share this stream: from the picker (start) or from the MiniERP sharing its own window. */
+  const attach = useCallback(
+    async (next: MediaStream): Promise<MediaStream> => {
+      stop();
+      const video = (videoRef.current ??= document.createElement("video"));
+      canvasRef.current ??= document.createElement("canvas");
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = next;
+      await video.play().catch(() => {});
+      next.getVideoTracks()[0]?.addEventListener("ended", stop);
+
+      tZeroRef.current = tZeroMs ?? Date.now();
+      streamRef.current = next;
+      const scheduler = new FrameScheduler({ capture: captureFrame });
+      schedulerRef.current = scheduler;
+      if (paused) scheduler.pause();
+      scheduler.start();
+      setStream(next);
+      return next;
+    },
+    [captureFrame, paused, stop, tZeroMs],
+  );
+
   const start = useCallback(async (): Promise<MediaStream | null> => {
     let next: MediaStream;
     try {
@@ -78,24 +102,11 @@ export function useScreenCapture({
     } catch {
       return null; // user cancelled the picker
     }
-    stop();
-    const video = (videoRef.current ??= document.createElement("video"));
-    canvasRef.current ??= document.createElement("canvas");
-    video.muted = true;
-    video.playsInline = true;
-    video.srcObject = next;
-    await video.play().catch(() => {});
-    next.getVideoTracks()[0]?.addEventListener("ended", stop);
+    return attach(next);
+  }, [attach]);
 
-    tZeroRef.current = tZeroMs ?? Date.now();
-    streamRef.current = next;
-    const scheduler = new FrameScheduler({ capture: captureFrame });
-    schedulerRef.current = scheduler;
-    if (paused) scheduler.pause();
-    scheduler.start();
-    setStream(next);
-    return next;
-  }, [captureFrame, paused, stop, tZeroMs]);
+  /** Read at call time (the MiniERP window asks), so it never sees a stale render. */
+  const isSharing = useCallback(() => streamRef.current !== null, []);
 
   // One frames socket per session token while sharing.
   useEffect(() => {
@@ -131,5 +142,5 @@ export function useScreenCapture({
 
   useEffect(() => stop, [stop]);
 
-  return { stream, sharing: stream !== null, stats, start, stop };
+  return { stream, sharing: stream !== null, stats, start, attach, stop, isSharing };
 }

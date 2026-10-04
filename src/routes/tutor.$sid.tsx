@@ -3,6 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { openMiniErp } from "@/sandbox/openMiniErp";
+import { StartMiniErp } from "@/components/StartMiniErp";
+import { exposeRoomBridge } from "@/sandbox/roomBridge";
+import { primeMicrophone } from "@/lib/microphone";
 import { useTutorSession, type StepOutcome } from "@/hooks/useTutorSession";
 import { ReplayModal } from "@/components/ReplayModal";
 import { ConsentModal } from "@/components/ConsentModal";
@@ -74,11 +77,33 @@ function TutorRoom() {
     if (done) stopCapture();
   }, [done, stopCapture]);
 
-  const shareScreen = () => void capture.start();
+  // The MiniERP window shares itself and hands the stream over (src/sandbox/useSelfShare.ts).
+  const doneRef = useRef(done);
+  doneRef.current = done;
+  const { attach, isSharing } = capture;
+  useEffect(
+    () =>
+      exposeRoomBridge({
+        needsShare: () => !doneRef.current && !isSharing(),
+        attachShare: (stream) => void attach(stream),
+      }),
+    [attach, isSharing],
+  );
+
+  const [consented, setConsented] = useState(false);
+  // Open MiniERP (or Share screen) starts the practice: consent is recorded and the tutor connects.
+  const begin = () => {
+    if (t.phase === "idle") t.start();
+  };
+  const shareScreen = () => {
+    begin();
+    void capture.start();
+  };
 
   // A popup window, not a tab; it keeps `window.opener` pointing here (src/sandbox/openMiniErp.ts).
   const openErp = () => {
     erpWindow.current = openMiniErp(sid, "tutor", erpWindow.current);
+    begin();
   };
 
   return (
@@ -89,16 +114,18 @@ function TutorRoom() {
             Tutor Room <span className="font-mono text-sm text-muted-foreground">#{sid}</span>
           </h1>
           <div className="flex gap-2">
-            <button
-              onClick={openErp}
-              className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
-            >
-              Open MiniERP
-            </button>
+            {sharing && (
+              <button
+                onClick={openErp}
+                className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
+              >
+                Open MiniERP
+              </button>
+            )}
             <button
               onClick={shareScreen}
               disabled={done}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
             >
               {sharing ? "Change shared screen" : "Share screen"}
             </button>
@@ -113,11 +140,14 @@ function TutorRoom() {
             playsInline
             className="h-full w-full object-contain"
           />
-          {!sharing && (
-            <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              {done ? "Screen sharing stopped." : "Your shared screen will appear here"}
-            </div>
-          )}
+          {!sharing &&
+            (done ? (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                Screen sharing stopped.
+              </div>
+            ) : (
+              <StartMiniErp started={t.phase !== "idle"} onOpen={openErp} />
+            ))}
         </div>
       </section>
 
@@ -247,11 +277,14 @@ function TutorRoom() {
         <ReplayModal title={t.replayView.title} src={t.replayView.src} onClose={t.closeReplay} />
       )}
 
-      {t.phase === "idle" && t.found && (
+      {!consented && t.phase === "idle" && t.found && (
         <ConsentModal
           subtitle={`Sidekik coaches you through this practice in ${t.expertName}'s words. Nothing starts until you agree.`}
           items={PRACTICE_CONSENT}
-          onAccept={t.start}
+          onAccept={() => {
+            setConsented(true);
+            primeMicrophone();
+          }}
         />
       )}
     </div>
