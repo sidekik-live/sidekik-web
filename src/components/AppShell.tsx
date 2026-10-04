@@ -29,7 +29,12 @@ function isBareRoute(path: string) {
 }
 
 export function Wordmark() {
-  return <span className="text-lg font-bold tracking-tight text-primary">sidekik</span>;
+  return (
+    <span className="inline-flex items-center gap-2">
+      <img src="/logo.png" alt="" width={24} height={24} className="size-6 shrink-0" />
+      <span className="text-lg font-bold tracking-tight text-primary">sidekik</span>
+    </span>
+  );
 }
 
 function AppSidebar() {
