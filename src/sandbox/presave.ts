@@ -3,6 +3,9 @@ import type { InvoiceState } from "./contract";
 
 export type SandboxMode = "capture" | "tutor";
 
+/** How long Save waits for the rule check before falling back (see presave()). */
+export const PRESAVE_TIMEOUT_MS = 3000;
+
 export interface PresaveResult {
   allow: boolean;
   guardrail_id?: string;
@@ -35,8 +38,11 @@ async function supabaseToken(): Promise<string | null> {
 
 /**
  * DESIGN §6: before saving, ask the gateway (→ tutor's deterministic rule check) whether the
- * save is allowed. 300 ms budget. If the check can't run, capture allows the save (the expert
- * must never be blocked) and tutor blocks it (a learner must never save past a guardrail).
+ * save is allowed. The design's 300 ms budget only holds on localhost: in production the request
+ * crosses the internet to Railway and the gateway looks up the user and session in Supabase, which
+ * alone can take longer. PRESAVE_TIMEOUT_MS leaves room for that. If the check can't run, capture
+ * allows the save (the expert must never be blocked) and tutor blocks it (a learner must never
+ * save past a guardrail).
  * Without a session (MiniERP opened on its own) every save is allowed.
  */
 export async function presave(
@@ -46,7 +52,7 @@ export async function presave(
   const {
     sid,
     mode = "capture",
-    timeoutMs = 300,
+    timeoutMs = PRESAVE_TIMEOUT_MS,
     getToken = supabaseToken,
     fetchImpl = fetch,
   } = ctx;

@@ -2,6 +2,7 @@ import { LiveTranscript } from "@/components/LiveTranscript";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
+import { openMiniErp } from "@/sandbox/openMiniErp";
 import { useTutorSession, type StepOutcome } from "@/hooks/useTutorSession";
 import { ReplayModal } from "@/components/ReplayModal";
 import { ConsentModal } from "@/components/ConsentModal";
@@ -66,15 +67,18 @@ function TutorRoom() {
     if (videoRef.current) videoRef.current.srcObject = capture.stream;
   }, [capture.stream]);
 
+  // End practice: nothing more is watched, so release the shared screen.
+  const done = t.phase === "done";
+  const stopCapture = capture.stop;
+  useEffect(() => {
+    if (done) stopCapture();
+  }, [done, stopCapture]);
+
   const shareScreen = () => void capture.start();
 
-  // A named second window keeps `window.opener` pointing here, so MiniERP events reach this room.
+  // A popup window, not a tab; it keeps `window.opener` pointing here (src/sandbox/openMiniErp.ts).
   const openErp = () => {
-    erpWindow.current = window.open(
-      `/sandbox/erp?sid=${encodeURIComponent(sid)}&mode=tutor`,
-      "sidekik-minierp",
-      "width=1280,height=800",
-    );
+    erpWindow.current = openMiniErp(sid, "tutor", erpWindow.current);
   };
 
   return (
@@ -93,7 +97,8 @@ function TutorRoom() {
             </button>
             <button
               onClick={shareScreen}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              disabled={done}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               {sharing ? "Change shared screen" : "Share screen"}
             </button>
@@ -110,7 +115,7 @@ function TutorRoom() {
           />
           {!sharing && (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              Your shared screen will appear here
+              {done ? "Screen sharing stopped." : "Your shared screen will appear here"}
             </div>
           )}
         </div>
