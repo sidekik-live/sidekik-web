@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { useSidekikSession, type SessionStatus } from "@/hooks/useSidekikSession";
@@ -13,7 +13,10 @@ export const Route = createFileRoute("/capture/$sid")({
       { title: "Capture Room | Sidekik" },
       { name: "description", content: "Share your screen and let Sidekik capture how you work." },
       { property: "og:title", content: "Capture Room | Sidekik" },
-      { property: "og:description", content: "Share your screen and let Sidekik capture how you work." },
+      {
+        property: "og:description",
+        content: "Share your screen and let Sidekik capture how you work.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -71,18 +74,33 @@ function CaptureRoom() {
     <div className="flex h-full">
       <section className="flex flex-1 flex-col gap-3 p-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Capture Room <span className="font-mono text-sm text-muted-foreground">#{sid}</span></h1>
+          <h1 className="text-lg font-semibold">
+            Capture Room <span className="font-mono text-sm text-muted-foreground">#{sid}</span>
+          </h1>
           <div className="flex gap-2">
-            <button onClick={openErp} className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent">
+            <button
+              onClick={openErp}
+              className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
+            >
               Open MiniERP
             </button>
-            <button onClick={shareScreen} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
+            <button
+              onClick={shareScreen}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
               {sharing ? "Change shared screen" : "Share screen"}
             </button>
           </div>
         </div>
         <div className="relative flex-1 overflow-hidden rounded-lg border border-border bg-muted">
-          <video id="screen-preview" ref={videoRef} autoPlay muted playsInline className="h-full w-full object-contain" />
+          <video
+            id="screen-preview"
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className="h-full w-full object-contain"
+          />
           {!sharing && (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
               Your shared screen will appear here
@@ -100,7 +118,10 @@ function CaptureRoom() {
       <aside className="flex w-80 shrink-0 flex-col gap-4 border-l border-border p-4">
         <StatusPill status={s.status} />
         {s.found === false && !devToken && (
-          <p role="alert" className="rounded-md border border-destructive p-2 text-sm text-destructive">
+          <p
+            role="alert"
+            className="rounded-md border border-destructive p-2 text-sm text-destructive"
+          >
             This session can't be resumed in this tab. Start a new capture from Home.
           </p>
         )}
@@ -111,39 +132,80 @@ function CaptureRoom() {
         )}
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Live transcript</h2>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Live transcript
+          </h2>
           <ul className="flex-1 space-y-2 overflow-auto">
-            {s.transcript.length === 0 && <li className="text-sm text-muted-foreground">Nothing yet.</li>}
+            {s.transcript.length === 0 && (
+              <li className="text-sm text-muted-foreground">Nothing yet.</li>
+            )}
             {s.transcript.map((t) => (
-              <li key={t.id} className={`rounded-md p-2 text-sm ${t.role === "agent" ? "bg-secondary" : "border border-border"}`}>
-                <span className="block text-[11px] font-medium text-muted-foreground">{t.role === "agent" ? "Sidekik" : "You"}</span>
+              <li
+                key={t.id}
+                className={`rounded-md p-2 text-sm ${t.role === "agent" ? "bg-secondary" : "border border-border"}`}
+              >
+                <span className="block text-[11px] font-medium text-muted-foreground">
+                  {t.role === "agent" ? "Sidekik" : "You"}
+                </span>
                 {t.text}
               </li>
             ))}
           </ul>
         </div>
 
-        <p className="text-sm">Questions asked: <strong>{s.questionsAsked}</strong></p>
+        <p className="text-sm">
+          Questions asked: <strong>{s.questionsAsked}</strong>
+        </p>
 
         <button
           onClick={s.toggleOffRecord}
           disabled={!live}
           aria-pressed={s.offRecord}
           className={`rounded-lg border-2 py-4 text-base font-bold ${
-            s.offRecord ? "border-destructive bg-destructive text-destructive-foreground" : "border-destructive text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            s.offRecord
+              ? "border-destructive bg-destructive text-destructive-foreground"
+              : "border-destructive text-destructive hover:bg-destructive/10 disabled:opacity-50"
           }`}
         >
           {s.offRecord ? "Back on the record" : "Off the record"}
         </button>
 
-        <button
-          onClick={s.taskDone}
-          disabled={s.phase !== "capture"}
-          className="rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
-          Task done
-        </button>
-        {s.phase === "reviewing" && <p className="text-center text-sm text-muted-foreground">Sidekik is reviewing your session…</p>}
+        {/* One end button per agent: Task done hands the Interviewer over to the debrief agent; End debrief hangs up. */}
+        {s.phase === "debrief" ? (
+          <>
+            <button
+              onClick={() => void s.end()}
+              className="rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              End debrief
+            </button>
+            <p className="text-center text-xs text-muted-foreground">
+              Ends the debrief agent and the session.
+            </p>
+          </>
+        ) : s.phase === "ended" ? (
+          <p className="text-center text-sm text-muted-foreground">
+            Session ended.{" "}
+            <Link to="/" className="text-primary underline-offset-4 hover:underline">
+              Back to Home
+            </Link>
+          </p>
+        ) : (
+          <>
+            <button
+              onClick={s.taskDone}
+              disabled={s.phase !== "capture"}
+              className="rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              Task done
+            </button>
+            <p className="text-center text-xs text-muted-foreground">
+              {s.phase === "reviewing"
+                ? "Sidekik is reviewing your session…"
+                : "Ends the Interviewer and starts the debrief."}
+            </p>
+          </>
+        )}
       </aside>
 
       {!consented && s.found && (
@@ -163,7 +225,9 @@ function StatusPill({ status }: { status: SessionStatus }) {
   return (
     <span
       className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-        off ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"
+        off
+          ? "bg-destructive text-destructive-foreground"
+          : "bg-secondary text-secondary-foreground"
       }`}
     >
       <span className={`size-2 rounded-full ${off ? "bg-destructive-foreground" : "bg-primary"}`} />
@@ -182,20 +246,35 @@ function ConsentModal({ onAccept }: { onAccept: () => void }) {
   ];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-      <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-lg bg-background p-6 shadow-lg">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-md rounded-lg bg-background p-6 shadow-lg"
+      >
         <h2 className="text-lg font-semibold">Before we start</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Sidekik records this session to learn how you work.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Sidekik records this session to learn how you work.
+        </p>
         <div className="mt-4 space-y-3">
           {items.map(([k, label]) => (
             <label key={k} className="flex items-start gap-2 text-sm">
-              <input type="checkbox" className="mt-0.5 size-4" checked={c[k]} onChange={(e) => setC({ ...c, [k]: e.target.checked })} />
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4"
+                checked={c[k]}
+                onChange={(e) => setC({ ...c, [k]: e.target.checked })}
+              />
               {label}
             </label>
           ))}
         </div>
         <div className="mt-6 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Consent text {CONSENT_VERSION}</span>
-          <button disabled={!all} onClick={onAccept} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          <button
+            disabled={!all}
+            onClick={onAccept}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          >
             I agree
           </button>
         </div>
