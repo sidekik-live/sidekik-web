@@ -17,7 +17,14 @@ import { clearSessionStart, loadSessionStart, type SessionStart } from "@/sessio
 // The engine (src/session/engine.ts) does the work; this hook gives it to React.
 
 export type SessionStatus =
-  "waiting" | "connecting" | "listening" | "asking" | "reviewing" | "debrief" | "offrecord";
+  | "waiting"
+  | "connecting"
+  | "listening"
+  | "asking"
+  | "reviewing"
+  | "debrief"
+  | "offrecord"
+  | "ended";
 export type SessionPhase = "idle" | "capture" | "reviewing" | "debrief" | "ended";
 export type TranscriptTurn = TranscriptEntry;
 
@@ -139,15 +146,17 @@ export function useSidekikSession(sid: string, opts: UseSidekikSessionOptions = 
         ? "waiting"
         : stage === "connecting"
           ? "connecting"
-          : state?.offRecord
-            ? "offrecord"
-            : stage === "reviewing"
-              ? "reviewing"
-              : stage === "debrief"
-                ? "debrief"
-                : state?.agentMode === "speaking"
-                  ? "asking"
-                  : "listening";
+          : stage === "ended" || stage === "finishing"
+            ? "ended"
+            : state?.offRecord
+              ? "offrecord"
+              : stage === "reviewing"
+                ? "reviewing"
+                : stage === "debrief"
+                  ? "debrief"
+                  : state?.agentMode === "speaking"
+                    ? "asking"
+                    : "listening";
     const phase: SessionPhase =
       !stage || stage === "awaiting_consent"
         ? "idle"

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
+import { openMiniErp } from "@/sandbox/openMiniErp";
 import { ConsentModal } from "@/components/ConsentModal";
 import { LiveTranscript } from "@/components/LiveTranscript";
 import { useSidekikSession, type SessionStatus } from "@/hooks/useSidekikSession";
@@ -34,6 +35,7 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
   reviewing: "Reviewing",
   debrief: "Debrief",
   offrecord: "OFF THE RECORD",
+  ended: "Session ended",
 };
 
 const CAPTURE_CONSENT = [
@@ -69,16 +71,19 @@ function CaptureRoom() {
     if (videoRef.current) videoRef.current.srcObject = capture.stream;
   }, [capture.stream]);
 
+  // Once the session ends (End debrief), nothing more is captured: release the shared screen.
+  const ended = s.phase === "ended";
+  const stopCapture = capture.stop;
+  useEffect(() => {
+    if (ended) stopCapture();
+  }, [ended, stopCapture]);
+
   const shareScreen = () => void capture.start();
   const live = s.phase === "capture" || s.phase === "reviewing" || s.phase === "debrief";
 
-  // A named second window keeps `window.opener` pointing here, so MiniERP events reach this room.
+  // A popup window, not a tab; it keeps `window.opener` pointing here (src/sandbox/openMiniErp.ts).
   const openErp = () => {
-    erpWindow.current = window.open(
-      `/sandbox/erp?sid=${encodeURIComponent(sid)}&mode=capture`,
-      "sidekik-minierp",
-      "width=1280,height=800",
-    );
+    erpWindow.current = openMiniErp(sid, "capture", erpWindow.current);
   };
 
   return (
@@ -97,7 +102,8 @@ function CaptureRoom() {
             </button>
             <button
               onClick={shareScreen}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              disabled={ended}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
             >
               {sharing ? "Change shared screen" : "Share screen"}
             </button>
@@ -114,7 +120,7 @@ function CaptureRoom() {
           />
           {!sharing && (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              Your shared screen will appear here
+              {ended ? "Screen sharing stopped." : "Your shared screen will appear here"}
             </div>
           )}
         </div>
@@ -215,6 +221,7 @@ function CaptureRoom() {
 
 function StatusPill({ status }: { status: SessionStatus }) {
   const off = status === "offrecord";
+  const ended = status === "ended";
   return (
     <span
       className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
@@ -223,7 +230,11 @@ function StatusPill({ status }: { status: SessionStatus }) {
           : "bg-secondary text-secondary-foreground"
       }`}
     >
-      <span className={`size-2 rounded-full ${off ? "bg-destructive-foreground" : "bg-primary"}`} />
+      <span
+        className={`size-2 rounded-full ${
+          off ? "bg-destructive-foreground" : ended ? "bg-muted-foreground" : "bg-primary"
+        }`}
+      />
       {STATUS_LABEL[status]}
     </span>
   );

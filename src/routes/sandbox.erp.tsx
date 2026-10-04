@@ -49,6 +49,7 @@ function ErpPage() {
   const [banner, setBanner] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const draftRef = useRef(draft);
   draftRef.current = draft;
 
@@ -124,12 +125,14 @@ function ErpPage() {
   };
 
   const save = async () => {
+    if (checking) return;
     const state = draft;
     const invoiceState = toInvoiceState(state);
     emitDomEvent(domEvent("save_attempt", { record: rec(state.invoice_id), state: invoiceState }));
     setBanner(null);
     setNotice(null);
-    const res = await presave(invoiceState, { sid, mode });
+    setChecking(true);
+    const res = await presave(invoiceState, { sid, mode }).finally(() => setChecking(false));
     if (!res.allow) {
       setBanner(
         res.unavailable
@@ -335,8 +338,8 @@ function ErpPage() {
 
           <div className="mt-3 flex justify-end gap-2">
             <Btn onClick={hold}>Hold</Btn>
-            <Btn primary onClick={save}>
-              Save
+            <Btn primary onClick={save} disabled={checking}>
+              {checking ? "Checking…" : "Save"}
             </Btn>
           </div>
         </div>
@@ -353,16 +356,19 @@ function Btn({
   children,
   onClick,
   primary,
+  disabled,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   primary?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`min-h-7 shrink-0 whitespace-nowrap border px-3 py-1 text-xs leading-tight ${
+      disabled={disabled}
+      className={`min-h-7 shrink-0 whitespace-nowrap border px-3 py-1 text-xs leading-tight disabled:opacity-60 ${
         primary
           ? "border-primary bg-primary text-primary-foreground hover:opacity-90"
           : "border-input bg-secondary hover:bg-accent"
