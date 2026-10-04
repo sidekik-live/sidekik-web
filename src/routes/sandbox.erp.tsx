@@ -15,9 +15,15 @@ export const Route = createFileRoute("/sandbox/erp")({
   head: () => ({
     meta: [
       { title: "MiniERP — Accounts Payable | Sidekik" },
-      { name: "description", content: "Sandbox accounts-payable screen for practicing invoice coding." },
+      {
+        name: "description",
+        content: "Sandbox accounts-payable screen for practicing invoice coding.",
+      },
       { property: "og:title", content: "MiniERP — Accounts Payable | Sidekik" },
-      { property: "og:description", content: "Sandbox accounts-payable screen for practicing invoice coding." },
+      {
+        property: "og:description",
+        content: "Sandbox accounts-payable screen for practicing invoice coding.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -54,11 +60,15 @@ function ErpPage() {
     setBanner(null);
     setNotice(null);
     setHighlight(null);
-    emitDomEvent(domEvent("record_open", { record: rec(inv.invoice_id), state: toInvoiceState(inv) }));
+    emitDomEvent(
+      domEvent("record_open", { record: rec(inv.invoice_id), state: toInvoiceState(inv) }),
+    );
   };
 
   useEffect(() => {
-    emitDomEvent(domEvent("record_open", { record: rec(draft.invoice_id), state: toInvoiceState(draft) }));
+    emitDomEvent(
+      domEvent("record_open", { record: rec(draft.invoice_id), state: toInvoiceState(draft) }),
+    );
     const onMsg = (e: MessageEvent) => {
       const d = e.data;
       if (!d || typeof d !== "object") return;
@@ -98,7 +108,13 @@ function ErpPage() {
   };
 
   const focus = (field: Field) =>
-    emitDomEvent(domEvent("field_focus", { record: rec(draft.invoice_id), field, state: toInvoiceState(draft) }));
+    emitDomEvent(
+      domEvent("field_focus", {
+        record: rec(draft.invoice_id),
+        field,
+        state: toInvoiceState(draft),
+      }),
+    );
   // Blur isn't a DomEvent kind; it only asks the room for an extra screen frame.
   const blur = (_field: Field) => emitFrameHint("blur");
 
@@ -126,7 +142,9 @@ function ErpPage() {
     }
     const next = { ...state, status: state.status === "on hold" ? "on hold" : "posted" };
     commit(next);
-    setNotice(`Invoice ${next.invoice_id} saved.${res.unavailable ? " (Rule check unavailable.)" : ""}`);
+    setNotice(
+      `Invoice ${next.invoice_id} saved.${res.unavailable ? " (Rule check unavailable.)" : ""}`,
+    );
     emitFrameHint("save");
   };
 
@@ -135,9 +153,16 @@ function ErpPage() {
 
   const cls = (f: string) =>
     `h-7 w-full border bg-background px-1.5 text-xs outline-none focus:border-ring ${
-      highlight === f ? "border-destructive ring-2 ring-destructive/40 bg-destructive/5" : "border-input"
+      highlight === f
+        ? "border-destructive ring-2 ring-destructive/40 bg-destructive/5"
+        : "border-input"
     }`;
-  const bind = (f: Field) => ({ id: `f-${f}`, onFocus: () => focus(f), onBlur: () => blur(f), className: cls(f) });
+  const bind = (f: Field) => ({
+    id: `f-${f}`,
+    onFocus: () => focus(f),
+    onBlur: () => blur(f),
+    className: cls(f),
+  });
 
   return (
     <div className="flex h-screen flex-col text-xs">
@@ -151,7 +176,9 @@ function ErpPage() {
             <thead className="sticky top-0 bg-muted">
               <tr className="text-left">
                 {["Inv", "Supplier", "CoCd", "Date", "Net", "CC", "Status"].map((h) => (
-                  <th key={h} className="border-b border-border px-2 py-1 font-medium">{h}</th>
+                  <th key={h} className="border-b border-border px-2 py-1 font-medium">
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -168,7 +195,9 @@ function ErpPage() {
                   <td className="truncate px-2 py-1 max-w-[140px]">{inv.supplier}</td>
                   <td className="px-2 py-1">{inv.company_code}</td>
                   <td className="px-2 py-1">{inv.invoice_date}</td>
-                  <td className="px-2 py-1 text-right font-mono">{inv.net_amount.toLocaleString("de-DE")}</td>
+                  <td className="px-2 py-1 text-right font-mono">
+                    {inv.net_amount.toLocaleString("de-DE")}
+                  </td>
                   <td className="px-2 py-1 font-mono">{inv.cost_center}</td>
                   <td className="px-2 py-1">{inv.status}</td>
                 </tr>
@@ -179,26 +208,44 @@ function ErpPage() {
 
         <div className="flex-1 overflow-auto p-3">
           {banner && (
-            <div role="alert" className="mb-3 border border-destructive bg-destructive px-3 py-2 text-destructive-foreground">
+            <div
+              role="alert"
+              className="mb-3 border border-destructive bg-destructive px-3 py-2 text-destructive-foreground"
+            >
               <strong>Save blocked.</strong> “{banner}”
             </div>
           )}
           {notice && <div className="mb-3 border border-border bg-muted px-3 py-2">{notice}</div>}
 
           <fieldset className="border border-border p-3">
-            <legend className="px-1 font-semibold">Invoice {draft.invoice_id} — {draft.description}</legend>
+            <legend className="px-1 font-semibold">
+              Invoice {draft.invoice_id} — {draft.description}
+            </legend>
             <div className="grid grid-cols-[140px_1fr_140px_1fr] items-center gap-x-3 gap-y-2">
               <L>Invoice ID</L>
-              <input {...bind("invoice_id")} value={draft.invoice_id} readOnly className={`${cls("invoice_id")} bg-muted`} />
+              <input
+                {...bind("invoice_id")}
+                value={draft.invoice_id}
+                readOnly
+                className={`${cls("invoice_id")} bg-muted`}
+              />
               <L>Status</L>
-              <select {...bind("status")} value={draft.status} onChange={(e) => change("status", e.target.value)}>
+              <select
+                {...bind("status")}
+                value={draft.status}
+                onChange={(e) => change("status", e.target.value)}
+              >
                 <option value="open">open</option>
                 <option value="on hold">on hold</option>
                 <option value="posted">posted</option>
               </select>
 
               <L>Supplier</L>
-              <input {...bind("supplier")} value={draft.supplier} onChange={(e) => change("supplier", e.target.value)} />
+              <input
+                {...bind("supplier")}
+                value={draft.supplier}
+                onChange={(e) => change("supplier", e.target.value)}
+              />
               <L>Supplier known</L>
               <input
                 id="f-supplier_known"
@@ -211,41 +258,76 @@ function ErpPage() {
               />
 
               <L>Company code</L>
-              <select {...bind("company_code")} value={draft.company_code} onChange={(e) => change("company_code", e.target.value)}>
+              <select
+                {...bind("company_code")}
+                value={draft.company_code}
+                onChange={(e) => change("company_code", e.target.value)}
+              >
                 <option>DE01</option>
                 <option>CZ01</option>
               </select>
               <L>Invoice date</L>
-              <input {...bind("invoice_date")} type="date" value={draft.invoice_date} onChange={(e) => change("invoice_date", e.target.value)} />
+              <input
+                {...bind("invoice_date")}
+                type="date"
+                value={draft.invoice_date}
+                onChange={(e) => change("invoice_date", e.target.value)}
+              />
 
               <L>Net amount</L>
-              <input {...bind("net_amount")} type="number" value={draft.net_amount} onChange={(e) => change("net_amount", Number(e.target.value))} />
+              <input
+                {...bind("net_amount")}
+                type="number"
+                value={draft.net_amount}
+                onChange={(e) => change("net_amount", Number(e.target.value))}
+              />
               <L>Currency</L>
-              <select {...bind("currency")} value={draft.currency} onChange={(e) => change("currency", e.target.value)}>
+              <select
+                {...bind("currency")}
+                value={draft.currency}
+                onChange={(e) => change("currency", e.target.value)}
+              >
                 <option>EUR</option>
                 <option>CZK</option>
                 <option>USD</option>
               </select>
 
               <L>Category</L>
-              <select {...bind("category")} value={draft.category} onChange={(e) => change("category", e.target.value)}>
+              <select
+                {...bind("category")}
+                value={draft.category}
+                onChange={(e) => change("category", e.target.value)}
+              >
                 <option value="equipment">equipment</option>
                 <option value="services">services</option>
                 <option value="parts">parts</option>
                 <option value="office">office</option>
               </select>
               <L>Cost center</L>
-              <select {...bind("cost_center")} value={draft.cost_center} onChange={(e) => change("cost_center", e.target.value)}>
+              <select
+                {...bind("cost_center")}
+                value={draft.cost_center}
+                onChange={(e) => change("cost_center", e.target.value)}
+              >
                 <option value="4711">4711 Opex</option>
                 <option value="0400">0400 Capex</option>
                 <option value="0410">0410 Capex-IT</option>
               </select>
 
               <L>Asset number</L>
-              <input {...bind("asset_number")} value={draft.asset_number} onChange={(e) => change("asset_number", e.target.value)} />
+              <input
+                {...bind("asset_number")}
+                value={draft.asset_number}
+                onChange={(e) => change("asset_number", e.target.value)}
+              />
               <L>Approvals</L>
               <div className="flex items-center gap-2">
-                <input {...bind("approvals_count")} value={draft.approvals_count} readOnly className={`${cls("approvals_count")} w-12 bg-muted`} />
+                <input
+                  {...bind("approvals_count")}
+                  value={draft.approvals_count}
+                  readOnly
+                  className={`${cls("approvals_count")} w-12 bg-muted`}
+                />
                 <Btn onClick={secondApproval}>Send for 2nd approval</Btn>
               </div>
             </div>
@@ -253,7 +335,9 @@ function ErpPage() {
 
           <div className="mt-3 flex justify-end gap-2">
             <Btn onClick={hold}>Hold</Btn>
-            <Btn primary onClick={save}>Save</Btn>
+            <Btn primary onClick={save}>
+              Save
+            </Btn>
           </div>
         </div>
       </div>
@@ -265,13 +349,23 @@ function L({ children }: { children: React.ReactNode }) {
   return <label className="text-right text-muted-foreground">{children}</label>;
 }
 
-function Btn({ children, onClick, primary }: { children: React.ReactNode; onClick: () => void; primary?: boolean }) {
+function Btn({
+  children,
+  onClick,
+  primary,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  primary?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`h-7 border px-3 text-xs ${
-        primary ? "border-primary bg-primary text-primary-foreground hover:opacity-90" : "border-input bg-secondary hover:bg-accent"
+      className={`min-h-7 shrink-0 whitespace-nowrap border px-3 py-1 text-xs leading-tight ${
+        primary
+          ? "border-primary bg-primary text-primary-foreground hover:opacity-90"
+          : "border-input bg-secondary hover:bg-accent"
       }`}
     >
       {children}
