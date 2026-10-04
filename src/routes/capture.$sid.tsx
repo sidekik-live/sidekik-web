@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
+import { ConsentModal } from "@/components/ConsentModal";
+import { LiveTranscript } from "@/components/LiveTranscript";
 import { useSidekikSession, type SessionStatus } from "@/hooks/useSidekikSession";
 
 export const Route = createFileRoute("/capture/$sid")({
@@ -24,15 +26,24 @@ export const Route = createFileRoute("/capture/$sid")({
   component: CaptureRoom,
 });
 
-const CONSENT_VERSION = "v1";
-
 const STATUS_LABEL: Record<SessionStatus, string> = {
+  waiting: "Waiting for consent",
+  connecting: "Connecting…",
   listening: "Listening",
   asking: "Asking",
   reviewing: "Reviewing",
   debrief: "Debrief",
   offrecord: "OFF THE RECORD",
 };
+
+const CAPTURE_CONSENT = [
+  { key: "audio", label: "I agree to my voice being recorded and transcribed." },
+  { key: "screen", label: "I agree to my shared screen being captured." },
+  {
+    key: "storage",
+    label: "I agree to recordings being stored for my organisation's retention period.",
+  },
+];
 
 function CaptureRoom() {
   const { sid } = Route.useParams();
@@ -131,27 +142,7 @@ function CaptureRoom() {
           </p>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Live transcript
-          </h2>
-          <ul className="flex-1 space-y-2 overflow-auto">
-            {s.transcript.length === 0 && (
-              <li className="text-sm text-muted-foreground">Nothing yet.</li>
-            )}
-            {s.transcript.map((t) => (
-              <li
-                key={t.id}
-                className={`rounded-md p-2 text-sm ${t.role === "agent" ? "bg-secondary" : "border border-border"}`}
-              >
-                <span className="block text-[11px] font-medium text-muted-foreground">
-                  {t.role === "agent" ? "Sidekik" : "You"}
-                </span>
-                {t.text}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <LiveTranscript transcript={s.transcript} className="flex-1" />
 
         <p className="text-sm">
           Questions asked: <strong>{s.questionsAsked}</strong>
@@ -210,6 +201,8 @@ function CaptureRoom() {
 
       {!consented && s.found && (
         <ConsentModal
+          subtitle="Sidekik records this session to learn how you work."
+          items={CAPTURE_CONSENT}
           onAccept={() => {
             setConsented(true);
             void s.consent();
@@ -233,52 +226,5 @@ function StatusPill({ status }: { status: SessionStatus }) {
       <span className={`size-2 rounded-full ${off ? "bg-destructive-foreground" : "bg-primary"}`} />
       {STATUS_LABEL[status]}
     </span>
-  );
-}
-
-function ConsentModal({ onAccept }: { onAccept: () => void }) {
-  const [c, setC] = useState({ audio: false, screen: false, storage: false });
-  const all = c.audio && c.screen && c.storage;
-  const items: [keyof typeof c, string][] = [
-    ["audio", "I agree to my voice being recorded and transcribed."],
-    ["screen", "I agree to my shared screen being captured."],
-    ["storage", "I agree to recordings being stored for my organisation's retention period."],
-  ];
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="w-full max-w-md rounded-lg bg-background p-6 shadow-lg"
-      >
-        <h2 className="text-lg font-semibold">Before we start</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Sidekik records this session to learn how you work.
-        </p>
-        <div className="mt-4 space-y-3">
-          {items.map(([k, label]) => (
-            <label key={k} className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-0.5 size-4"
-                checked={c[k]}
-                onChange={(e) => setC({ ...c, [k]: e.target.checked })}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-        <div className="mt-6 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Consent text {CONSENT_VERSION}</span>
-          <button
-            disabled={!all}
-            onClick={onAccept}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          >
-            I agree
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
