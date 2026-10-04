@@ -18,12 +18,15 @@ const navItems: NavItem[] = [
   { label: "Tutor (demo)", to: "/tutor/$sid", params: { sid: "demo" }, adminOnly: true },
 ];
 
-/** Routes rendered full-screen, without sidebar, and reachable signed out. */
-function isBareRoute(path: string) {
+/**
+ * Routes rendered full-screen, without sidebar, and reachable signed out. The MiniERP is bare only in
+ * the window a Capture/Tutor Room opens (?sid=…); from the nav it sits in the normal layout.
+ */
+function isBareRoute(path: string, search: Record<string, unknown>) {
   return (
     path === "/login" ||
     path === "/signup" ||
-    path === "/sandbox/erp" ||
+    (path === "/sandbox/erp" && typeof search["sid"] === "string") ||
     path.startsWith("/agent-host/")
   );
 }
@@ -63,17 +66,11 @@ function AppSidebar() {
             </Link>
           ))}
       </nav>
+      {/* The account lives at the foot of the sidebar: no top bar, more room for each page. */}
+      <div className="mt-auto border-t border-border p-3">
+        <UserMenu role={membership?.role} />
+      </div>
     </aside>
-  );
-}
-
-function TopBar() {
-  const { membership } = useAuth();
-  return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-      <span className="text-sm font-semibold">{membership?.orgName ?? ""}</span>
-      <UserMenu />
-    </header>
   );
 }
 
@@ -88,10 +85,10 @@ function NoOrg() {
 }
 
 export function AppShell() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const { ready, session, membership, membershipLoading } = useAuth();
-  const bare = isBareRoute(pathname);
+  const bare = isBareRoute(pathname, search as Record<string, unknown>);
 
   useEffect(() => {
     if (ready && !session && !bare) navigate({ to: "/login", replace: true });
@@ -107,7 +104,6 @@ export function AppShell() {
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
       <div className="flex h-screen min-w-0 flex-1 flex-col">
-        <TopBar />
         <main className="min-h-0 flex-1 overflow-auto">
           {membershipLoading ? null : membership ? <Outlet /> : <NoOrg />}
         </main>

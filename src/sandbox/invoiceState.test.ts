@@ -8,7 +8,7 @@ describe("toInvoiceState", () => {
   it("normalizes the €7,200 tutor case so G1 and G3 can fire", () => {
     expect(toInvoiceState(invoice("4510"))).toEqual({
       invoice_id: "4510",
-      supplier: "Antriebstechnik Nord",
+      supplier: "Northern Drive Systems",
       supplier_known: false,
       net_amount: 7200,
       currency: "EUR",
@@ -21,7 +21,7 @@ describe("toInvoiceState", () => {
     });
   });
 
-  it("derives invoice_month 12 for the December Kranbau invoices (G4)", () => {
+  it("derives invoice_month 12 for the December Crane Builders invoices (G4)", () => {
     expect(toInvoiceState(invoice("4480")).invoice_month).toBe(12);
     expect(toInvoiceState(invoice("4511")).invoice_month).toBe(12);
   });

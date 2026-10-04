@@ -16,7 +16,8 @@ import { clearSessionStart, loadSessionStart, type SessionStart } from "@/sessio
 // Ticket 3: the live session for the Capture/Debrief Room (and the Tutor Room, ticket 8).
 // The engine (src/session/engine.ts) does the work; this hook gives it to React.
 
-export type SessionStatus = "listening" | "asking" | "reviewing" | "debrief" | "offrecord";
+export type SessionStatus =
+  "waiting" | "connecting" | "listening" | "asking" | "reviewing" | "debrief" | "offrecord";
 export type SessionPhase = "idle" | "capture" | "reviewing" | "debrief" | "ended";
 export type TranscriptTurn = TranscriptEntry;
 
@@ -62,6 +63,15 @@ function acquire(sid: string, start: SessionStart, opts: UseSidekikSessionOption
   if (entry.endTimer) clearTimeout(entry.endTimer);
   entry.mounts += 1;
   return entry.engine;
+}
+
+// Dev only: a hot reload replaces this module, and with it the engine map. End the old engines' calls
+// so none keeps talking in the background with no page controlling it.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    for (const { engine } of engines.values()) void engine.end();
+    engines.clear();
+  });
 }
 
 function release(sid: string) {
@@ -124,15 +134,20 @@ export function useSidekikSession(sid: string, opts: UseSidekikSessionOptions = 
 
   return useMemo(() => {
     const stage = state?.stage;
-    const status: SessionStatus = state?.offRecord
-      ? "offrecord"
-      : stage === "reviewing"
-        ? "reviewing"
-        : stage === "debrief"
-          ? "debrief"
-          : state?.agentMode === "speaking"
-            ? "asking"
-            : "listening";
+    const status: SessionStatus =
+      !stage || stage === "awaiting_consent"
+        ? "waiting"
+        : stage === "connecting"
+          ? "connecting"
+          : state?.offRecord
+            ? "offrecord"
+            : stage === "reviewing"
+              ? "reviewing"
+              : stage === "debrief"
+                ? "debrief"
+                : state?.agentMode === "speaking"
+                  ? "asking"
+                  : "listening";
     const phase: SessionPhase =
       !stage || stage === "awaiting_consent"
         ? "idle"

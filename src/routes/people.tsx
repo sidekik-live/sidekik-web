@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { NativeSelect } from "@/components/NativeSelect";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -147,18 +148,19 @@ function AssignRoleForm({ orgId }: { orgId: string }) {
         Give an existing account a role. Accounts are created in Supabase.
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <select
+        <NativeSelect
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
           aria-label="Role"
-          className="h-9 rounded-md border bg-background px-2 text-sm"
+          wrapperClassName="w-36"
+          className="h-9 rounded-md border bg-background pl-2 text-sm"
         >
           {ROLES.map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
         <Input
           required
           type="email"

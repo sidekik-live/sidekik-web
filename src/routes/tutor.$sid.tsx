@@ -1,8 +1,10 @@
+import { LiveTranscript } from "@/components/LiveTranscript";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { useTutorSession, type StepOutcome } from "@/hooks/useTutorSession";
 import { ReplayModal } from "@/components/ReplayModal";
+import { ConsentModal } from "@/components/ConsentModal";
 
 export const Route = createFileRoute("/tutor/$sid")({
   head: () => ({
@@ -33,6 +35,13 @@ const OUTCOME: Record<StepOutcome, { label: string; cls: string }> = {
   corrected: { label: "Corrected", cls: "bg-destructive/15 text-destructive" },
   not_attempted: { label: "Not attempted", cls: "bg-muted text-muted-foreground" },
 };
+
+// Practice: voice and screen are used live; only the learner's results are kept.
+const PRACTICE_CONSENT = [
+  { key: "audio", label: "I agree to my voice being heard and transcribed during practice." },
+  { key: "screen", label: "I agree to my shared screen being watched during practice." },
+  { key: "results", label: "I understand my practice results are saved for my organisation." },
+];
 
 function TutorRoom() {
   const { sid } = Route.useParams();
@@ -182,21 +191,7 @@ function TutorRoom() {
           </div>
         )}
 
-        {t.phase === "idle" && t.found && (
-          <div className="rounded-lg border border-border p-3">
-            <p className="font-medium">Ready to practice?</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Sidekik listens to you and watches your shared screen while you work, and coaches you
-              in {t.expertName}'s words. Nothing is stored about you beyond your results.
-            </p>
-            <button
-              onClick={t.start}
-              className="mt-3 w-full rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
-              I agree, start practice
-            </button>
-          </div>
-        )}
+        {t.phase !== "idle" && <LiveTranscript transcript={t.transcript} className="max-h-72" />}
 
         {t.finishing && !t.mastery && (
           <p className="text-sm text-muted-foreground">
@@ -245,6 +240,14 @@ function TutorRoom() {
 
       {t.replayView && (
         <ReplayModal title={t.replayView.title} src={t.replayView.src} onClose={t.closeReplay} />
+      )}
+
+      {t.phase === "idle" && t.found && (
+        <ConsentModal
+          subtitle={`Sidekik coaches you through this practice in ${t.expertName}'s words. Nothing starts until you agree.`}
+          items={PRACTICE_CONSENT}
+          onAccept={t.start}
+        />
       )}
     </div>
   );

@@ -112,9 +112,8 @@ export interface SessionState {
   screenContext: string | null;
 }
 
-/** How long "End practice" waits for tutor's mastery summary, and how long the agent gets to read it. */
+/** How long "End practice" keeps listening for tutor's mastery summary (the voice stops at once). */
 const FINISH_WAIT_MS = 45_000;
-const SUMMARY_READ_MS = 25_000;
 
 /** "[SIDEKIK] …" messages are instructions to the agent, never the person's words. */
 const isSidekikInstruction = (text: string) => text.trimStart().startsWith("[SIDEKIK]");
@@ -213,6 +212,8 @@ export class SessionEngine {
 
   private async startConversation(token: string, dynamicVariables: Record<string, string>) {
     const generation = ++this.generation;
+    // Named once, at start: a later disconnect belongs to this agent, whatever the phase is by then.
+    const agent = this.agentName();
     try {
       const conversation = await this.deps.startConversation({
         conversationToken: token,
@@ -227,7 +228,7 @@ export class SessionEngine {
           onError: (message) => generation === this.generation && this.set({ error: message }),
           onDisconnect: () => {
             if (generation === this.generation && this.state.stage !== "ended") {
-              this.set({ error: `The ${this.agentName()} disconnected.` });
+              this.set({ error: `The ${agent} disconnected.` });
             }
           },
         },
@@ -240,7 +241,7 @@ export class SessionEngine {
       if (this.state.offRecord) conversation.setMicMuted(true);
       return true;
     } catch (err) {
-      this.fail(`Couldn't start the ${this.agentName()}: ${(err as Error).message}`);
+      this.fail(`Couldn't start the ${agent}: ${(err as Error).message}`);
       return false;
     }
   }
@@ -288,8 +289,8 @@ export class SessionEngine {
         break;
       case "summary":
         this.set({ mastery: cmd.mastery });
-        // The agent reads the summary aloud; give it time before hanging up.
-        if (this.state.stage === "finishing") this.scheduleTeardown(SUMMARY_READ_MS);
+        // After "End practice" the voice is already off: the summary only fills the mastery panel.
+        if (this.state.stage === "finishing") this.scheduleTeardown(0);
         break;
       case "offrecord":
         this.applyOffRecord(cmd.on);
@@ -303,10 +304,7 @@ export class SessionEngine {
   /** capture → debrief: end the capture agent, start the debrief agent with the new token. */
   private async switchPhase(cmd: Extract<AgentCommand, { type: "phase" }>) {
     this.set({ phase: cmd.phase, stage: cmd.phase === "debrief" ? "debrief" : this.state.stage });
-    const previous = this.conversation;
-    this.conversation = null;
-    await previous?.endSession().catch(() => {});
-    this.set({ agentMode: "listening" });
+    await this.hangUp(); // normally done already at Task done
     await this.startConversation(cmd.conversation_token, cmd.dynamic_variables);
   }
 
@@ -335,14 +333,28 @@ export class SessionEngine {
     }
   }
 
-  /** "Task done": the mapper builds the Work Map, then the gateway sends the `phase` command. */
+  /**
+   * "Task done": the Interviewer hangs up at once (it must not talk over the debrief agent); the
+   * mapper builds the Work Map, then the gateway sends the `phase` command that starts the debrief.
+   */
   async taskDone() {
     try {
       await this.deps.gateway.taskDone(this.sessionId);
-      this.set({ stage: "reviewing", phase: "building" });
     } catch (err) {
       this.set({ error: `Couldn't finish the task: ${(err as Error).message}` });
+      return;
     }
+    this.set({ stage: "reviewing", phase: "building" });
+    await this.hangUp();
+  }
+
+  /** Ends the current agent call on purpose: its callbacks are retired first, so no "disconnected" error. */
+  private async hangUp() {
+    const conversation = this.conversation;
+    this.conversation = null;
+    this.generation++;
+    this.set({ agentMode: "listening" });
+    await conversation?.endSession().catch(() => {});
   }
 
   /** MiniERP DOM events (src/sandbox/domEvents.ts) relayed to the gateway as {type:"dom", ...}. */
@@ -360,18 +372,19 @@ export class SessionEngine {
   }
 
   /**
-   * Tutor "End practice": the gateway ends the session, which makes tutor publish the mastery
-   * `summary`. Keep listening until it arrives (and the agent has read it), then hang up.
+   * Tutor "End practice": the voice stops at once; the gateway ends the session, which makes tutor
+   * publish the mastery `summary` for the panel. Keep listening until it arrives, then hang up.
    */
   async finish(waitMs = FINISH_WAIT_MS) {
     if (this.state.stage === "ended" || this.state.stage === "finishing") return;
     this.set({ stage: "finishing" });
+    await this.hangUp();
     try {
       await this.deps.gateway.end(this.sessionId);
     } catch (err) {
       this.set({ error: `Couldn't end the session: ${(err as Error).message}` });
     }
-    this.scheduleTeardown(this.state.mastery ? SUMMARY_READ_MS : waitMs);
+    this.scheduleTeardown(this.state.mastery ? 0 : waitMs);
   }
 
   async end() {

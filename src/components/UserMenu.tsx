@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 
-export function UserMenu() {
+/** Account menu at the foot of the sidebar: who is signed in, as which role; theme; sign out. */
+export function UserMenu({ role }: { role?: string | undefined }) {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -36,16 +37,26 @@ export function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
-        <span className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-semibold uppercase text-primary-foreground">
+      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold uppercase text-primary-foreground">
           {email.charAt(0) || "?"}
         </span>
-        <span className="hidden max-w-48 truncate text-muted-foreground sm:inline">{email}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-foreground">{email}</span>
+          {role && <span className="block text-xs capitalize text-muted-foreground">{role}</span>}
+        </span>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{email}</DropdownMenuLabel>
+      <DropdownMenuContent side="top" align="start" className="w-56">
+        <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
+          {email}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleDark(); }}>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            toggleDark();
+          }}
+        >
           {dark ? "Light mode" : "Dark mode"}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={handleSignOut}>Sign out</DropdownMenuItem>

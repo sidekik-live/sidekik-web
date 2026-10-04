@@ -61,6 +61,7 @@ function setup(opts: Partial<EngineOptions> = {}) {
       setMicMuted: (m) => c.muted.push(m),
       endSession: async () => {
         c.ended = true;
+        c.callbacks.onDisconnect(); // the ElevenLabs SDK reports its own hang-up too
       },
     };
   };
@@ -276,12 +277,14 @@ describe("SessionEngine", () => {
     expect(t.current().muted).toEqual([true, false]);
   });
 
-  it("finishes a tutor session: ends at the gateway, waits for the summary, then hangs up", async () => {
+  it("finishes a tutor session: stops the voice at once, ends at the gateway, waits for the summary", async () => {
     vi.useFakeTimers();
     try {
       const t = setup({ kind: "tutor" });
       await t.engine.consent();
       await t.engine.finish();
+      expect(t.current().ended).toBe(true);
+      expect(t.engine.getState().error).toBeNull();
       expect(t.gateway.end).toHaveBeenCalledTimes(1);
       expect(t.engine.getState().stage).toBe("finishing");
       const mastery = {
@@ -299,11 +302,8 @@ describe("SessionEngine", () => {
       };
       await t.command({ type: "summary", mastery });
       expect(t.engine.getState().mastery).toEqual(mastery);
-      expect(t.current().userMessages.at(-1)).toMatch(/^\[SIDEKIK\] SUMMARY: 1 of 2 steps/);
-      await vi.advanceTimersByTimeAsync(24_000);
-      expect(t.current().ended).toBe(false);
-      await vi.advanceTimersByTimeAsync(1_000);
-      expect(t.current().ended).toBe(true);
+      expect(t.current().userMessages).toEqual([]); // nothing is read aloud any more
+      await vi.advanceTimersByTimeAsync(0);
       expect(t.engine.getState().stage).toBe("ended");
       expect(t.gateway.end).toHaveBeenCalledTimes(1);
     } finally {
@@ -366,5 +366,66 @@ describe("SessionEngine", () => {
     expect(t.unsubscribe).toHaveBeenCalledTimes(1);
     expect(t.gateway.end).toHaveBeenCalledTimes(1);
     expect(t.engine.getState().stage).toBe("ended");
+  });
+
+  describe("agent disconnects", () => {
+    const debrief: AgentCommand = {
+      type: "phase",
+      phase: "debrief",
+      conversation_token: "tok-debrief",
+      agent_id: "agent_deb",
+      dynamic_variables: {},
+    };
+
+    it("hangs up the Interviewer at Task done, quietly, so it never overlaps the debrief agent", async () => {
+      const t = setup();
+      await t.engine.consent();
+      await t.engine.taskDone();
+      expect(t.conversations[0]!.ended).toBe(true);
+      expect(t.engine.getState()).toMatchObject({ stage: "reviewing", error: null });
+      await t.command(debrief);
+      expect(t.conversations).toHaveLength(2);
+      expect(t.conversations.filter((c) => !c.ended)).toHaveLength(1); // only the debrief agent is live
+      expect(t.engine.getState().error).toBeNull();
+    });
+
+    it("keeps the Interviewer when Task done fails", async () => {
+      const t = setup();
+      await t.engine.consent();
+      t.gateway.taskDone.mockRejectedValueOnce(new Error("gateway down"));
+      await t.engine.taskDone();
+      expect(t.conversations[0]!.ended).toBe(false);
+      expect(t.engine.getState().error).toMatch(/Couldn't finish the task/);
+    });
+
+    it("names the Interviewer during capture, and the Debrief agent after the switch", async () => {
+      const t = setup();
+      await t.engine.consent();
+      t.current().callbacks.onDisconnect();
+      expect(t.engine.getState().error).toBe("The Interviewer disconnected.");
+
+      await t.engine.taskDone();
+      await t.command(debrief);
+      t.current().callbacks.onDisconnect();
+      expect(t.engine.getState().error).toBe("The Debrief agent disconnected.");
+    });
+
+    it("End debrief hangs up the debrief agent at once and ends the session", async () => {
+      const t = setup();
+      await t.engine.consent();
+      await t.engine.taskDone();
+      await t.command(debrief);
+      await t.engine.end();
+      expect(t.conversations.every((c) => c.ended)).toBe(true);
+      expect(t.engine.getState()).toMatchObject({ stage: "ended", error: null });
+      expect(t.gateway.end).toHaveBeenCalledWith("sess-1");
+    });
+
+    it("names the Tutor in a tutor session", async () => {
+      const t = setup({ kind: "tutor" });
+      await t.engine.consent();
+      t.current().callbacks.onDisconnect();
+      expect(t.engine.getState().error).toBe("The Tutor disconnected.");
+    });
   });
 });
