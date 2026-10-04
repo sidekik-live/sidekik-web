@@ -1,0 +1,41 @@
+# Deploys the app to the Cloudflare Worker "sidekik-web" (custom domain sidekik.live) on every push
+# to main, i.e. every merged PR. Lovable stays the editor; Cloudflare hosts.
+# Repo secrets: CLOUDFLARE_API_TOKEN (Workers Scripts: Edit), CLOUDFLARE_ACCOUNT_ID.
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # Supabase VITE_* values come from the committed .env; the backend URLs default to
+      # api/ingest.sidekik.live (src/lib/config.ts) and are set here explicitly.
+      - name: Build
+        run: bun run build
+        env:
+          VITE_API_URL: https://api.sidekik.live
+          VITE_INGEST_URL: wss://ingest.sidekik.live
+
+      # The build writes .wrangler/deploy/config.json, which points wrangler at .output/server/wrangler.json.
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          command: deploy

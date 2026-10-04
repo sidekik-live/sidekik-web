@@ -1,0 +1,5 @@
+// Cloudflare Workers hosting for sidekik.live. Nitro (via @lovable.dev/vite-tanstack-config) merges
+// this into the generated .output/server/wrangler.json; it only pins the Worker name.
+{
+  "name": "sidekik-web"
+}
