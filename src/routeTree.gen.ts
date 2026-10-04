@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CostsRouteImport } from './routes/costs'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PeopleRouteImport } from './routes/people'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AgentHostSidRouteImport } from './routes/agent-host.$sid'
 import { Route as CaptureSidRouteImport } from './routes/capture.$sid'
 import { Route as OrgSettingsRouteImport } from './routes/org.settings'
@@ -44,6 +45,11 @@ const LoginRoute = LoginRouteImport.update({
 const PeopleRoute = PeopleRouteImport.update({
   id: '/people',
   path: '/people',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgentHostSidRoute = AgentHostSidRouteImport.update({
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/costs': typeof CostsRoute
   '/login': typeof LoginRoute
   '/people': typeof PeopleRoute
+  '/signup': typeof SignupRoute
   '/agent-host/$sid': typeof AgentHostSidRoute
   '/capture/$sid': typeof CaptureSidRoute
   '/org/settings': typeof OrgSettingsRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/costs': typeof CostsRoute
   '/login': typeof LoginRoute
   '/people': typeof PeopleRoute
+  '/signup': typeof SignupRoute
   '/agent-host/$sid': typeof AgentHostSidRoute
   '/capture/$sid': typeof CaptureSidRoute
   '/org/settings': typeof OrgSettingsRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/costs': typeof CostsRoute
   '/login': typeof LoginRoute
   '/people': typeof PeopleRoute
+  '/signup': typeof SignupRoute
   '/agent-host/$sid': typeof AgentHostSidRoute
   '/capture/$sid': typeof CaptureSidRoute
   '/org/settings': typeof OrgSettingsRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/costs'
     | '/login'
     | '/people'
+    | '/signup'
     | '/agent-host/$sid'
     | '/capture/$sid'
     | '/org/settings'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/costs'
     | '/login'
     | '/people'
+    | '/signup'
     | '/agent-host/$sid'
     | '/capture/$sid'
     | '/org/settings'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/costs'
     | '/login'
     | '/people'
+    | '/signup'
     | '/agent-host/$sid'
     | '/capture/$sid'
     | '/org/settings'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   CostsRoute: typeof CostsRoute
   LoginRoute: typeof LoginRoute
   PeopleRoute: typeof PeopleRoute
+  SignupRoute: typeof SignupRoute
   AgentHostSidRoute: typeof AgentHostSidRoute
   CaptureSidRoute: typeof CaptureSidRoute
   OrgSettingsRoute: typeof OrgSettingsRoute
@@ -266,6 +279,13 @@ declare module '@tanstack/react-router' {
       path: '/people'
       fullPath: '/people'
       preLoaderRoute: typeof PeopleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agent-host/$sid': {
@@ -360,6 +380,7 @@ const rootRouteChildren: RootRouteChildren = {
   CostsRoute: CostsRoute,
   LoginRoute: LoginRoute,
   PeopleRoute: PeopleRoute,
+  SignupRoute: SignupRoute,
   AgentHostSidRoute: AgentHostSidRoute,
   CaptureSidRoute: CaptureSidRoute,
   OrgSettingsRoute: OrgSettingsRoute,
