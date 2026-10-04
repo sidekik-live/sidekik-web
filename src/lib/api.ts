@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { CreateSessionResponse } from "@/session/contract";
 import type { GatewayClient } from "@/session/engine";
 import { saveSessionStart } from "@/session/handoff";
+import type { Role } from "@/lib/auth";
 
 export type SessionKind = "capture" | "tutor";
 
@@ -129,15 +130,19 @@ export async function updateWorkflow(_input: UpdateWorkflowInput): Promise<void>
 
 // ---------- People ----------
 export type PersonKind = "expert" | "learner";
-export interface InvitePersonInput {
-  kind: PersonKind;
+export interface AssignRoleInput {
+  org_id: string;
   email: string;
-  display_name: string;
-  language: string;
+  role: Role;
+  /** Name for a new expert/learner profile; the gateway defaults it to the email's local part. */
+  display_name?: string;
+  language?: string;
 }
-// TODO: POST `${API_URL}/v1/people/invite` with authHeaders().
-export async function invitePerson(_input: InvitePersonInput): Promise<{ id: string }> {
-  throw new Error("not implemented");
+/** POST /v1/people: gives an existing account (created in Supabase) a role in the org. Admins only. */
+export async function assignRole(
+  input: AssignRoleInput,
+): Promise<{ user_id: string; person_id: string | null; role: Role }> {
+  return gatewayPost("/v1/people", input);
 }
 export interface UpdatePersonInput {
   kind: PersonKind;

@@ -11,7 +11,7 @@ import {
   type SessionState,
   type TranscriptEntry,
 } from "@/session/engine";
-import { loadSessionStart, type SessionStart } from "@/session/handoff";
+import { clearSessionStart, loadSessionStart, type SessionStart } from "@/session/handoff";
 
 // Ticket 3: the live session for the Capture/Debrief Room (and the Tutor Room, ticket 8).
 // The engine (src/session/engine.ts) does the work; this hook gives it to React.
@@ -29,7 +29,12 @@ export interface UseSidekikSessionOptions {
 // ends its session if it isn't mounted again right away.
 const engines = new Map<
   string,
-  { engine: SessionEngine; mounts: number; endTimer?: ReturnType<typeof setTimeout> }
+  {
+    engine: SessionEngine;
+    start: SessionStart;
+    mounts: number;
+    endTimer?: ReturnType<typeof setTimeout>;
+  }
 >();
 
 function acquire(sid: string, start: SessionStart, opts: UseSidekikSessionOptions) {
@@ -51,7 +56,7 @@ function acquire(sid: string, start: SessionStart, opts: UseSidekikSessionOption
         subscribeCommands: (onCommand) => subscribeAgentCommands(sid, onCommand),
       },
     );
-    entry = { engine, mounts: 0 };
+    entry = { engine, start, mounts: 0 };
     engines.set(sid, entry);
   }
   if (entry.endTimer) clearTimeout(entry.endTimer);
@@ -78,9 +83,13 @@ export function useSidekikSession(sid: string, opts: UseSidekikSessionOptions = 
   const [engine, setEngine] = useState<SessionEngine | null>(null);
 
   useEffect(() => {
-    const s = loadSessionStart(sid);
+    const s = engines.get(sid)?.start ?? loadSessionStart(sid);
     setStart(s);
     if (!s) return;
+    // One use only: the ElevenLabs token is single-use and the session moves on (debrief, ended), so a
+    // reload or Back must start a new session from Home, not restart this one. The live engine above
+    // keeps React's development double mount working.
+    clearSessionStart(sid);
     const e = acquire(sid, s, opts);
     setEngine(e);
     return () => release(sid);

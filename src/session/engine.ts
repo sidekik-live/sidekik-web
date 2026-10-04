@@ -205,6 +205,12 @@ export class SessionEngine {
     if (ok) this.set({ stage: "live" });
   }
 
+  /** The ElevenLabs agent this phase talks to, for messages the person reads. */
+  private agentName(): string {
+    if (this.opts.kind === "tutor") return "Tutor";
+    return this.state.phase === "debrief" ? "Debrief agent" : "Interviewer";
+  }
+
   private async startConversation(token: string, dynamicVariables: Record<string, string>) {
     const generation = ++this.generation;
     try {
@@ -221,7 +227,7 @@ export class SessionEngine {
           onError: (message) => generation === this.generation && this.set({ error: message }),
           onDisconnect: () => {
             if (generation === this.generation && this.state.stage !== "ended") {
-              this.set({ error: "The voice agent disconnected." });
+              this.set({ error: `The ${this.agentName()} disconnected.` });
             }
           },
         },
@@ -234,7 +240,7 @@ export class SessionEngine {
       if (this.state.offRecord) conversation.setMicMuted(true);
       return true;
     } catch (err) {
-      this.fail(`Couldn't start the voice agent: ${(err as Error).message}`);
+      this.fail(`Couldn't start the ${this.agentName()}: ${(err as Error).message}`);
       return false;
     }
   }
@@ -258,7 +264,9 @@ export class SessionEngine {
     }
 
     switch (cmd.type) {
+      // The Interviewer's live questions and the debrief agent's follow-ups both count.
       case "ask":
+      case "followup":
         this.set({ questionsAsked: this.state.questionsAsked + 1 });
         break;
       case "predict":

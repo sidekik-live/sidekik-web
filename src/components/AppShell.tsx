@@ -20,7 +20,12 @@ const navItems: NavItem[] = [
 
 /** Routes rendered full-screen, without sidebar, and reachable signed out. */
 function isBareRoute(path: string) {
-  return path === "/login" || path === "/sandbox/erp" || path.startsWith("/agent-host/");
+  return (
+    path === "/login" ||
+    path === "/signup" ||
+    path === "/sandbox/erp" ||
+    path.startsWith("/agent-host/")
+  );
 }
 
 export function Wordmark() {
@@ -44,7 +49,9 @@ function AppSidebar() {
               to={item.to as never}
               params={(item.params ?? {}) as never}
               activeOptions={{ exact: item.to === "/" }}
-              activeProps={{ className: "bg-sidebar-accent text-sidebar-accent-foreground font-medium" }}
+              activeProps={{
+                className: "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+              }}
               className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               {item.label}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SessionState } from "./engine";
-import { tutorView, type WorkMapStep } from "./tutorView";
+import { openQuestion, tutorView, type WorkMapStep } from "./tutorView";
 
 const steps: WorkMapStep[] = [
   {
@@ -142,8 +142,48 @@ describe("tutorView", () => {
     expect(tutorView(null, [])).toEqual({
       currentStep: null,
       predictPrompt: null,
+      openQuestion: null,
       intervention: null,
       mastery: null,
     });
+  });
+});
+
+describe("openQuestion", () => {
+  const turn = (role: "user" | "agent", text: string, i = 0) => ({
+    id: `t${i}`,
+    role,
+    text,
+    t_ms: i,
+  });
+
+  it("is the question in the agent's latest turn", () => {
+    const s = {
+      ...base,
+      transcript: [turn("agent", "I hear you. But would you keep it as euros, or change it?")],
+    };
+    expect(openQuestion(s)).toBe("But would you keep it as euros, or change it?");
+  });
+
+  it("is null once the learner replies, or when the agent didn't ask", () => {
+    expect(
+      openQuestion({
+        ...base,
+        transcript: [turn("agent", "Why 0400?", 0), turn("user", "Capex.", 1)],
+      }),
+    ).toBeNull();
+    expect(openQuestion({ ...base, transcript: [turn("agent", "Got it, thanks.")] })).toBeNull();
+  });
+
+  it("leaves pending predictions and the finished session to their own cards", () => {
+    const transcript = [turn("agent", "Which cost center?")];
+    expect(
+      openQuestion({
+        ...base,
+        transcript,
+        prediction: { step_id: "s4", prompt: "Which cost center?" },
+      }),
+    ).toBeNull();
+    expect(openQuestion(null)).toBeNull();
   });
 });
