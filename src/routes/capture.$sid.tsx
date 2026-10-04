@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { useSidekikSession, type SessionStatus } from "@/hooks/useSidekikSession";
 
 export const Route = createFileRoute("/capture/$sid")({
+  // `?t=<sk_token>`: dev-only way to test frames against perception until useSidekikSession
+  // (ticket 3) gets the real token from POST /v1/sessions.
+  validateSearch: (search: Record<string, unknown>): { t?: string } =>
+    typeof search["t"] === "string" ? { t: search["t"] } : {},
   head: () => ({
     meta: [
       { title: "Capture Room | Sidekik" },
@@ -28,21 +33,20 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
 
 function CaptureRoom() {
   const { sid } = Route.useParams();
+  const { t: devToken } = Route.useSearch();
   const s = useSidekikSession(sid);
+  const capture = useScreenCapture({ sid, skToken: devToken ?? null, paused: s.offRecord });
+  const sharing = capture.sharing;
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [sharing, setSharing] = useState(false);
   const [consented, setConsented] = useState(false);
 
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.srcObject = capture.stream;
+  }, [capture.stream]);
+
   const shareScreen = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 } });
-      if (videoRef.current) videoRef.current.srcObject = stream;
-      setSharing(true);
-      stream.getVideoTracks()[0]?.addEventListener("ended", () => setSharing(false));
-      if (s.phase === "idle") s.start();
-    } catch {
-      /* user cancelled */
-    }
+    const stream = await capture.start();
+    if (stream && s.phase === "idle") s.start();
   };
 
   return (
@@ -62,6 +66,11 @@ function CaptureRoom() {
             </div>
           )}
         </div>
+        {sharing && (
+          <p className="text-xs text-muted-foreground">
+            Frames sent {capture.stats.sent} · dropped {capture.stats.dropped} · ingest {devToken ? capture.stats.socket : "no session token"}
+          </p>
+        )}
       </section>
 
       <aside className="flex w-80 shrink-0 flex-col gap-4 border-l border-border p-4">
