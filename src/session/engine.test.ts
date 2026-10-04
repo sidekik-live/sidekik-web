@@ -89,6 +89,13 @@ function setup(opts: Partial<EngineOptions> = {}) {
 }
 
 describe("SessionEngine", () => {
+  it("starts once, however many times consent is given", async () => {
+    const t = setup();
+    await Promise.all([t.engine.consent(), t.engine.consent()]);
+    await t.engine.consent();
+    expect(t.gateway.consent).toHaveBeenCalledTimes(1);
+  });
+
   it("records consent, then connects the gateway socket, Realtime and the agent", async () => {
     const t = setup();
     expect(t.engine.getState().stage).toBe("awaiting_consent");

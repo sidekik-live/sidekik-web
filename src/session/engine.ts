@@ -130,6 +130,7 @@ export class SessionEngine {
   private turnSeq = 0;
   private finishTimer: ReturnType<typeof setTimeout> | null = null;
   private generation = 0;
+  private consenting = false;
 
   constructor(
     private readonly opts: EngineOptions,
@@ -182,6 +183,9 @@ export class SessionEngine {
   }
 
   async consent(scopes: ConsentScope[] = ["audio", "screen", "storage"]) {
+    // Once only: Open MiniERP and Share screen both start the session, and may both be clicked.
+    if (this.consenting || this.state.stage !== "awaiting_consent") return;
+    this.consenting = true;
     try {
       await this.deps.gateway.consent(this.sessionId, scopes);
     } catch (err) {

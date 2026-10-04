@@ -2,6 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { openMiniErp } from "@/sandbox/openMiniErp";
+import { StartMiniErp } from "@/components/StartMiniErp";
+import { exposeRoomBridge } from "@/sandbox/roomBridge";
+import { primeMicrophone } from "@/lib/microphone";
 import { ConsentModal } from "@/components/ConsentModal";
 import { LiveTranscript } from "@/components/LiveTranscript";
 import { useSidekikSession, type SessionStatus } from "@/hooks/useSidekikSession";
@@ -28,7 +31,7 @@ export const Route = createFileRoute("/capture/$sid")({
 });
 
 const STATUS_LABEL: Record<SessionStatus, string> = {
-  waiting: "Waiting for consent",
+  waiting: "Not started",
   connecting: "Connecting…",
   listening: "Listening",
   asking: "Asking",
@@ -78,12 +81,33 @@ function CaptureRoom() {
     if (ended) stopCapture();
   }, [ended, stopCapture]);
 
-  const shareScreen = () => void capture.start();
+  // The MiniERP window shares itself and hands the stream over (src/sandbox/useSelfShare.ts).
+  const endedRef = useRef(ended);
+  endedRef.current = ended;
+  const { attach, isSharing } = capture;
+  useEffect(
+    () =>
+      exposeRoomBridge({
+        needsShare: () => !endedRef.current && !isSharing(),
+        attachShare: (stream) => void attach(stream),
+      }),
+    [attach, isSharing],
+  );
+
+  // Open MiniERP (or Share screen) starts the session: consent is recorded and the agent connects.
+  const begin = () => {
+    if (s.phase === "idle") void s.consent();
+  };
+  const shareScreen = () => {
+    begin();
+    void capture.start();
+  };
   const live = s.phase === "capture" || s.phase === "reviewing" || s.phase === "debrief";
 
   // A popup window, not a tab; it keeps `window.opener` pointing here (src/sandbox/openMiniErp.ts).
   const openErp = () => {
     erpWindow.current = openMiniErp(sid, "capture", erpWindow.current);
+    begin();
   };
 
   return (
@@ -94,16 +118,18 @@ function CaptureRoom() {
             Capture Room <span className="font-mono text-sm text-muted-foreground">#{sid}</span>
           </h1>
           <div className="flex gap-2">
-            <button
-              onClick={openErp}
-              className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
-            >
-              Open MiniERP
-            </button>
+            {sharing && (
+              <button
+                onClick={openErp}
+                className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
+              >
+                Open MiniERP
+              </button>
+            )}
             <button
               onClick={shareScreen}
               disabled={ended}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
             >
               {sharing ? "Change shared screen" : "Share screen"}
             </button>
@@ -118,11 +144,14 @@ function CaptureRoom() {
             playsInline
             className="h-full w-full object-contain"
           />
-          {!sharing && (
-            <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-              {ended ? "Screen sharing stopped." : "Your shared screen will appear here"}
-            </div>
-          )}
+          {!sharing &&
+            (ended ? (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                Screen sharing stopped.
+              </div>
+            ) : (
+              <StartMiniErp started={s.phase !== "idle"} onOpen={openErp} />
+            ))}
         </div>
         {sharing && (
           <p className="text-xs text-muted-foreground">
@@ -211,7 +240,7 @@ function CaptureRoom() {
           items={CAPTURE_CONSENT}
           onAccept={() => {
             setConsented(true);
-            void s.consent();
+            primeMicrophone();
           }}
         />
       )}

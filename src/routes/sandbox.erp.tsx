@@ -4,6 +4,7 @@ import seed from "@/sandbox/invoices.json";
 import { domEvent, emitDomEvent, emitFrameHint, wireValue } from "@/sandbox/domEvents";
 import { toInvoiceState, type SandboxInvoice } from "@/sandbox/invoiceState";
 import { presave, type SandboxMode } from "@/sandbox/presave";
+import { useSelfShare } from "@/sandbox/useSelfShare";
 
 export const Route = createFileRoute("/sandbox/erp")({
   // Opened by the Capture/Tutor Room as /sandbox/erp?sid=<session>&mode=capture|tutor.
@@ -50,6 +51,8 @@ function ErpPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  // Opened from a room: share this window with it right away (the person only presses Allow).
+  const selfShare = useSelfShare(!!sid);
   const draftRef = useRef(draft);
   draftRef.current = draft;
 
@@ -173,6 +176,19 @@ function ErpPage() {
         <span className="font-semibold">MiniERP · Accounts Payable · Invoice Verification</span>
         <span className="text-muted-foreground">Sandbox</span>
       </div>
+      {selfShare.state === "asking" && (
+        <div className="border-b border-border bg-secondary px-3 py-2 text-secondary-foreground">
+          Choose <strong>Allow</strong> so Sidekik can see this window.
+        </div>
+      )}
+      {selfShare.state === "needed" && (
+        <div className="flex items-center justify-between gap-3 border-b border-destructive bg-destructive/10 px-3 py-2 text-destructive">
+          <span>Sidekik can't see this window yet.</span>
+          <Btn primary onClick={() => void selfShare.share()}>
+            Share this window
+          </Btn>
+        </div>
+      )}
       <div className="flex min-h-0 flex-1">
         <div className="w-[480px] shrink-0 overflow-auto border-r border-border">
           <table className="w-full border-collapse">
