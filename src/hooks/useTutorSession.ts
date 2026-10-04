@@ -121,6 +121,7 @@ export function useTutorSession(sid: string, opts: UseTutorSessionOptions = {}) 
     expertName,
     currentStep: view.currentStep,
     predictPrompt: view.predictPrompt,
+    openQuestion: view.openQuestion,
     intervention: view.intervention,
     mastery,
     replayView,

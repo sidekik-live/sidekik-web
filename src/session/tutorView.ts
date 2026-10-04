@@ -57,6 +57,18 @@ export function mapMastery(m: MasterySummary, steps: WorkMapStep[]): MasteryResu
   };
 }
 
+/** The question in the agent's latest turn, while the learner hasn't replied (else null). */
+export function openQuestion(state: SessionState | null): string | null {
+  if (!state || state.prediction || state.mastery) return null;
+  const last = state.transcript.at(-1);
+  if (!last || last.role !== "agent") return null;
+  const questions = last.text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => /\?["”')]*$/.test(s));
+  return questions.at(-1) ?? null;
+}
+
 export function tutorView(state: SessionState | null, steps: WorkMapStep[]) {
   const ordered = [...steps].sort((a, b) => a.ordinal - b.ordinal);
   const byId = new Map(ordered.map((s) => [s.id, s]));
@@ -81,6 +93,8 @@ export function tutorView(state: SessionState | null, steps: WorkMapStep[]) {
   return {
     currentStep: focus ? toTutorStep(focus) : null,
     predictPrompt: state?.prediction?.prompt ?? null,
+    /** Any other question the agent asked, so the learner can always type an answer. */
+    openQuestion: openQuestion(state),
     intervention,
     mastery: state?.mastery ? mapMastery(state.mastery, ordered) : null,
   };
